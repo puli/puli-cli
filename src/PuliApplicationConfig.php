@@ -16,6 +16,7 @@ use Puli\Cli\Handler\BuildCommandHandler;
 use Puli\Cli\Handler\CatCommandHandler;
 use Puli\Cli\Handler\ConfigCommandHandler;
 use Puli\Cli\Handler\FindCommandHandler;
+use Puli\Cli\Handler\InitCommandHandler;
 use Puli\Cli\Handler\InstallerCommandHandler;
 use Puli\Cli\Handler\LsCommandHandler;
 use Puli\Cli\Handler\MapCommandHandler;
@@ -553,6 +554,15 @@ class PuliApplicationConfig extends DefaultApplicationConfig
                         $puli->getRepository()
                     );
                 })
+            ->end()
+        ;
+
+        $this
+            ->beginCommand('init')
+                ->setHandler(function() use ($puli) {
+                    return new InitCommandHandler($puli->getRootDirectory());
+                })
+                ->setHandlerMethod('handle')
             ->end()
         ;
     }
