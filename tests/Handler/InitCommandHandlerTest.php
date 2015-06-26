@@ -41,11 +41,50 @@ class InitCommandHandlerTest extends AbstractCommandHandlerTest
      */
     public function getTestCases()
     {
-        return array(
-            array(false, null),
-            array(true, null),
-            array(true, 'composer/package')
+        $possibleValues = array(
+            array(true, false),
+            array(null, 'composer/package'),
         );
+
+        $numberOfEntries = array();
+        foreach ($possibleValues as $index => $values) {
+            $numberOfEntries[$index] = 1;
+            for ($testCaseIndex = $index + 1; $testCaseIndex < count($possibleValues); $testCaseIndex++) {
+                $numberOfEntries[$index] *= count($possibleValues[$testCaseIndex]);
+            }
+        }
+        $numberOfTestCases = count($possibleValues[0]) * $numberOfEntries[0];
+
+        $testCases = array();
+        for ($testCaseIndex = 0; $testCaseIndex < $numberOfTestCases; $testCaseIndex++) {
+            $testCases[] = array();
+        }
+
+        foreach ($possibleValues as $index => $values) {
+            $entries      = $numberOfEntries[$index];
+            $remaining    = $entries;
+            $elementIndex = 0;
+            for ($testCaseIndex = 0; $testCaseIndex < $numberOfTestCases; $testCaseIndex++) {
+                $testCases[$testCaseIndex][$index] = $values[$elementIndex];
+
+                if (0 === --$remaining) {
+                    $remaining = $entries;
+                    $elementIndex++;
+                    if ($elementIndex === count($values)) {
+                        $elementIndex = 0;
+                    }
+                }
+             }
+        }
+
+        // we create ALL possible combinations, but some don't make sense at all, so we'll remove those
+        return array_filter($testCases, function($testCase) {
+            if (!$testCase[0] && null !== $testCase[1]) { // no composer file, but a name in composer file...
+                return false;
+            }
+
+            return true;
+        });
     }
 
     /**
