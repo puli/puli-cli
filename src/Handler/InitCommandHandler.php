@@ -64,16 +64,15 @@ class InitCommandHandler
             $answer = $io->read(1);
 
             if (empty($answer)) {
-                $answer = null;
-                break;
+                return null;
             } elseif ('a' === $answer) {
-                $answer = true;
+                return true;
             } elseif ('l' === $answer) {
-                $answer = false;
+                return false;
+            } else {
+                $answer = null;
             }
         } while (null === $answer);
-
-        return $answer;
     }
 
     /**
