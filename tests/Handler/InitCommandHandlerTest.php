@@ -80,6 +80,16 @@ class InitCommandHandlerTest extends AbstractCommandHandlerTest
 
         $this->io
             ->expects($this->at($atIndex++))
+            ->method('write')
+            ->with('Project is an [a]pplication or a [l]ibrary: ');
+
+        $this->io
+            ->expects($this->at($atIndex++))
+            ->method('read')
+            ->willReturn('a');
+
+        $this->io
+            ->expects($this->at($atIndex++))
             ->method('writeLine')
             ->with(sprintf('Your package name: %s', $packageName));
 
