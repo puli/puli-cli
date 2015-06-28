@@ -48,13 +48,15 @@ class InitCommandHandlerTest extends AbstractCommandHandlerTest
     public function getTestCases()
     {
         return array(
-            array(false, null, '', '', '', ''),
-            array(true,  null, '', '', '', ''),
-            array(true,  'composer/package', '', '', '', ''),
+            array(false, null, '', '', '', '', ''),
+            array(true,  null, '', '', '', '', ''),
+            array(true,  'composer/package', '', '', '', '', ''),
 
+            array(false, null, 'a', '', '', '', ''),
+            array(false, null, 'l', '', '', '', ''),
 
-            array(false, null, 'a', '', '', ''),
-            array(false, null, 'l', '', '', ''),
+            array(false, null, '', 'no', '', '', ''),
+            array(false, null, '', 'yes', '', '', ''),
         );
     }
 
@@ -99,19 +101,144 @@ class InitCommandHandlerTest extends AbstractCommandHandlerTest
             ->willReturn($projectTypeAnswer);
     }
 
-    /**
-     * @dataProvider getTestCases
-     */
-    public function testAskingForPackageName($composerFileExists, $composerPackageName, $projectTypeAnswer)
+    private function addResDirCalls($createResDirAnswer, $resDirNameAnswer, $createConfigDir, $createPublicDirAnswer)
     {
-        $packageName = $this->addComposerNameCalls($composerFileExists, $composerPackageName);
-        $this->addApplicationOrLibraryCalls($projectTypeAnswer);
+        $this->io
+            ->expects($this->at($this->atIndex++))
+            ->method('write')
+            ->with('Create a resource directory [yes]: ');
 
         $this->io
             ->expects($this->at($this->atIndex++))
+            ->method('readLine')
+            ->willReturn($createResDirAnswer);
+
+        $directories = array();
+        if (in_array($createResDirAnswer, array('', 'yes'))) {
+            $this->io
+                ->expects($this->at($this->atIndex++))
+                ->method('write')
+                ->with('Name of the resource directory [res]: ');
+
+            $this->io
+                ->expects($this->at($this->atIndex++))
+                ->method('readLine')
+                ->willReturn($resDirNameAnswer);
+
+            if (empty($resDirNameAnswer)) {
+                $resDirNameAnswer = 'res';
+            }
+
+            $configDir = $resDirNameAnswer . '/config';
+            $this->io
+                ->expects($this->at($this->atIndex++))
+                ->method('write')
+                ->with(sprintf('Create directory "%s" [yes]: ', $configDir));
+
+            $this->io
+                ->expects($this->at($this->atIndex++))
+                ->method('readLine')
+                ->willReturn($createConfigDir);
+
+            if (in_array($createConfigDir, array('', 'yes'))) {
+                $directories[] = $configDir;
+            }
+
+            $publicDir = $resDirNameAnswer . '/public';
+            $this
+                ->io
+                ->expects($this->at($this->atIndex++))
+                ->method('write')
+                ->with(sprintf('Create directory "%s" [yes]: ', $publicDir));
+
+            $this->io
+                ->expects($this->at($this->atIndex++))
+                ->method('readLine')
+                ->willReturn($createPublicDirAnswer);
+        }
+    }
+
+    /**
+     * @dataProvider getTestCases
+     */
+    public function testAskingForPackageName($composerFileExists, $composerPackageName, $projectTypeAnswer,
+        $createResDirAnswer, $resDirNameAnswer, $createConfigDir, $createPublicDirAnswer)
+    {
+        $packageName = $this->addComposerNameCalls($composerFileExists, $composerPackageName);
+        $this->addApplicationOrLibraryCalls($projectTypeAnswer);
+        $this->addResDirCalls($createResDirAnswer, $resDirNameAnswer, $createConfigDir, $createPublicDirAnswer);
+
+        /*
+        $this->io
+            ->expects($this->at($this->atIndex++))
+            ->method('writeLine')
+            ->with(sprintf('Your package name: %s', $packageName));
+        */
+
+        $this->handler->handle($this->args, $this->io);
+    }
+
+    public function dataProviderForTestComposerNameWillBeRecommended()
+    {
+        return array(
+            array(false, null),
+            array(true, null),
+            array(true, 'composer/package')
+        );
+    }
+
+    /**
+     * @dataProvider dataProviderForTestComposerNameWillBeRecommended
+     */
+    public function testComposerNameWillBeRecommended($composerFileExists, $composerPackageName)
+    {
+        $packageName = $this->addComposerNameCalls($composerFileExists, $composerPackageName);
+
+        $this->io
+            ->expects($this->once())
             ->method('writeLine')
             ->with(sprintf('Your package name: %s', $packageName));
 
         $this->handler->handle($this->args, $this->io);
     }
+
+    public function dataProviderTestAskForCreationOfDirectories()
+    {
+        return array(
+            array('a')
+        );
+    }
+
+    /**
+     * @dataProvider
+     */
+    public function testAskForCreationOfDirectories($x)
+    {
+        $this->addComposerNameCalls(false, null);
+        $this->addApplicationOrLibraryCalls('');
+
+
+        $this->handler->handle($this->args, $this->io);
+        /*
+        $publicDir = $resDirNameAnswer . '/public';
+        $this
+            ->io
+            ->expects($this->at($this->atIndex++))
+            ->method('write')
+            ->with(sprintf('Create directory "%s" [yes]: ', $publicDir));
+
+        $this->io
+            ->expects($this->at($this->atIndex++))
+            ->method('readLine')
+            ->willReturn($createPublicDirAnswer);
+        */
+    }
+
+    /*
+    public function testCleanRun()
+    {
+        $this->addComposerNameCalls(false, null);
+        $this->addApplicationOrLibraryCalls('a');
+    }
+    */
 }

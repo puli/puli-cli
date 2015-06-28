@@ -25,6 +25,11 @@ class InitCommandHandler
         $packageName = $this->askForPackageName($io);
         $this->askWhetherApplicationOrLibrary($io);
 
+        $directoryCreations = array();
+        if (null !== $resDirectory = $this->askForResourceDirectoryName($io)) {
+            $directoryCreations = $this->getDirectoryCreationList($io, $resDirectory);
+        }
+
         $io->writeLine('Your package name: ' . $packageName);
     }
 
@@ -61,7 +66,7 @@ class InitCommandHandler
         $answer = null;
         do {
             $io->write('Project is an [a]pplication or a [l]ibrary: ');
-            $answer = $io->read(1);
+            $answer = trim($io->read(1));
 
             if (empty($answer)) {
                 return null;
@@ -73,6 +78,106 @@ class InitCommandHandler
                 $answer = null;
             }
         } while (null === $answer);
+    }
+
+    /**
+     * @param IO $io
+     * @param $resDirectory
+     * @return array
+     */
+    private function getDirectoryCreationList(IO $io, $resDirectory)
+    {
+        $directoryCreations = array();
+
+        $configDir = $resDirectory . '/config';
+        $publicDir = $resDirectory . '/public';
+        $cssDir    = $publicDir . '/css';
+        $imagesDir = $publicDir . '/images';
+        $jsDir     = $publicDir . '/js';
+        $viewsDir  = $resDirectory . '/views';
+        $transDir  = $resDirectory . '/trans';
+
+        if ($this->askForCreationOfDirectory($io, $configDir)) {
+            $directoryCreations[] = $configDir;
+        }
+
+        if ($this->askForCreationOfDirectory($io, $publicDir)) {
+            if ($this->askForCreationOfDirectory($io, $cssDir)) {
+                $directoryCreations[] = $cssDir;
+            }
+
+            if ($this->askForCreationOfDirectory($io, $imagesDir)) {
+                $directoryCreations[] = $imagesDir;
+            }
+
+            if ($this->askForCreationOfDirectory($io, $jsDir)) {
+                $directoryCreations[] = $jsDir;
+            }
+        }
+
+        if ($this->askForCreationOfDirectory($io, $viewsDir)) {
+            $directoryCreations[] = $viewsDir;
+        }
+
+        if ($this->askForCreationOfDirectory($io, $transDir)) {
+            $directoryCreations[] = $transDir;
+        }
+
+        return $directoryCreations;
+    }
+
+    /**
+     * @param IO $io
+     * @return null|string
+     */
+    private function askForResourceDirectoryName(IO $io)
+    {
+        $createResourceDirectory = null;
+        do {
+            $io->write('Create a resource directory [yes]: ');
+            $createResourceDirectory = trim($io->readLine());
+
+            if ('no' === $createResourceDirectory) {
+                $createResourceDirectory = false;
+            } else if (empty($createResourceDirectory) || 'yes' === $createResourceDirectory) {
+                $createResourceDirectory = true;
+            } else {
+                $createResourceDirectory = null;
+            }
+
+        } while (null === $createResourceDirectory);
+
+        if (!$createResourceDirectory) {
+            return null;
+        }
+
+        $io->write('Name of the resource directory [res]: ');
+        $resourceDirectory = trim($io->readLine());
+        if (empty($resourceDirectory)) {
+            $resourceDirectory = 'res';
+        }
+
+        return $resourceDirectory;
+    }
+
+    private function askForCreationOfDirectory(IO $io, $directory)
+    {
+        $createDirectory = null;
+        do {
+            $io->write(sprintf('Create directory "%s" [yes]: ', $directory));
+            $createDirectory = trim($io->readLine());
+
+            if ('no' === $createDirectory) {
+                $createDirectory = false;
+            } else if (empty($createDirectory) || 'yes' === $createDirectory) {
+                $createDirectory = true;
+            } else {
+                $createDirectory = null;
+            }
+
+        } while (null === $createDirectory);
+
+        return $createDirectory;
     }
 
     /**
