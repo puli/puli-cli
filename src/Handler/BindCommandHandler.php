@@ -66,11 +66,11 @@ class BindCommandHandler
      * Handles the "bind --list" command.
      *
      * @param Args $args The console arguments.
-     * @param IO   $io   The I/O.
+     * @param IO   $inputOutput   The I/O.
      *
      * @return int The status code.
      */
-    public function handleList(Args $args, IO $io)
+    public function handleList(Args $args, IO $inputOutput)
     {
         $packageNames = ArgsUtil::getPackageNames($args, $this->packages);
         $bindingStates = $this->getBindingStates($args);
@@ -90,25 +90,25 @@ class BindCommandHandler
 
                 $bindings = $this->discoveryManager->findBindings($expr);
 
-                if (!$bindings) {
+                if (empty($bindings)) {
                     continue;
                 }
 
                 if (!$bindingStatePrinted) {
-                    $this->printBindingStateHeader($io, $bindingState);
+                    $this->printBindingStateHeader($inputOutput, $bindingState);
                     $bindingStatePrinted = true;
                 }
 
                 if ($printPackageName) {
                     $prefix = $printBindingState ? '    ' : '';
-                    $io->writeLine("{$prefix}Package: $packageName");
-                    $io->writeLine('');
+                    $inputOutput->writeLine($prefix.'Package: '.$packageName);
+                    $inputOutput->writeLine('');
                 }
 
-                $this->printBindingTable($io, $bindings, $indentation, BindingState::ENABLED === $bindingState);
+                $this->printBindingTable($inputOutput, $bindings, $indentation, BindingState::ENABLED === $bindingState);
 
                 if ($printHeaders) {
-                    $io->writeLine('');
+                    $inputOutput->writeLine('');
                 }
             }
         }
@@ -310,14 +310,14 @@ class BindCommandHandler
     /**
      * Prints a list of binding descriptors.
      *
-     * @param IO                  $io          The I/O.
+     * @param IO                  $inputOutput The I/O.
      * @param BindingDescriptor[] $descriptors The binding descriptors.
      * @param int                 $indentation The number of spaces to indent.
      * @param bool                $enabled     Whether the binding descriptors
      *                                         are enabled. If not, the output
      *                                         is printed in red.
      */
-    private function printBindingTable(IO $io, array $descriptors, $indentation = 0, $enabled = true)
+    private function printBindingTable(IO $inputOutput, array $descriptors, $indentation = 0, $enabled = true)
     {
         $table = new Table(PuliTableStyle::borderless());
 
@@ -337,62 +337,62 @@ class BindCommandHandler
             $uuid = substr($descriptor->getUuid(), 0, 6);
 
             if (!$enabled) {
-                $uuid = "<bad>$uuid</bad>";
+                $uuid = '<bad>'.$uuid.'</bad>';
             }
 
-            if ($parameters) {
+            if (!empty($parameters)) {
                 // \xc2\xa0 is a non-breaking space
-                $paramString = " <$paramTag>(".implode(",\xc2\xa0", $parameters).")</$paramTag>";
+                $paramString = ' <'.$paramTag.'>('.implode(",\xc2\xa0", $parameters).')</'.$paramTag.'>';
             } else {
                 $paramString = '';
             }
 
             $table->addRow(array(
                 $uuid,
-                "<$queryTag>{$descriptor->getQuery()}</$queryTag>",
-                "<$typeTag>{$descriptor->getTypeName()}</$typeTag>".$paramString,
+                '<'.$queryTag.'>'.$descriptor->getQuery().'</'.$queryTag.'>',
+                '<'.$typeTag.'>'.$descriptor->getTypeName().'</'.$typeTag.'>'.$paramString,
             ));
         }
 
-        $table->render($io, $indentation);
+        $table->render($inputOutput, $indentation);
     }
 
     /**
      * Prints the header for a binding state.
      *
-     * @param IO  $io           The I/O.
+     * @param IO  $inputOutput  The I/O.
      * @param int $bindingState The {@link BindingState} constant.
      */
-    private function printBindingStateHeader(IO $io, $bindingState)
+    private function printBindingStateHeader(IO $inputOutput, $bindingState)
     {
         switch ($bindingState) {
             case BindingState::ENABLED:
-                $io->writeLine('The following bindings are currently enabled:');
-                $io->writeLine('');
+                $inputOutput->writeLine('The following bindings are currently enabled:');
+                $inputOutput->writeLine('');
 
                 return;
             case BindingState::DISABLED:
-                $io->writeLine('The following bindings are disabled:');
-                $io->writeLine(' (use "puli bind --enable <uuid>" to enable)');
-                $io->writeLine('');
+                $inputOutput->writeLine('The following bindings are disabled:');
+                $inputOutput->writeLine(' (use "puli bind --enable <uuid>" to enable)');
+                $inputOutput->writeLine('');
 
                 return;
             case BindingState::TYPE_NOT_FOUND:
-                $io->writeLine('The types of the following bindings could not be found:');
-                $io->writeLine(' (install or create their type definitions to enable)');
-                $io->writeLine('');
+                $inputOutput->writeLine('The types of the following bindings could not be found:');
+                $inputOutput->writeLine(' (install or create their type definitions to enable)');
+                $inputOutput->writeLine('');
 
                 return;
             case BindingState::TYPE_NOT_ENABLED:
-                $io->writeLine('The types of the following bindings are not enabled:');
-                $io->writeLine(' (remove the duplicate type definitions to enable)');
-                $io->writeLine('');
+                $inputOutput->writeLine('The types of the following bindings are not enabled:');
+                $inputOutput->writeLine(' (remove the duplicate type definitions to enable)');
+                $inputOutput->writeLine('');
 
                 return;
             case BindingState::INVALID:
-                $io->writeLine('The following bindings have invalid parameters:');
-                $io->writeLine(' (remove the binding and add again with correct parameters)');
-                $io->writeLine('');
+                $inputOutput->writeLine('The following bindings have invalid parameters:');
+                $inputOutput->writeLine(' (remove the binding and add again with correct parameters)');
+                $inputOutput->writeLine('');
 
                 return;
         }

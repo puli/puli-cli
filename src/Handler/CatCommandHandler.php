@@ -49,26 +49,26 @@ class CatCommandHandler
     /**
      * Handles the "ls" command.
      *
-     * @param Args $args The console arguments.
-     * @param IO   $io   The I/O.
+     * @param Args $args          The console arguments.
+     * @param IO   $inputOutput   The I/O.
      *
      * @return int The status code.
      */
-    public function handle(Args $args, IO $io)
+    public function handle(Args $args, IO $inputOutput)
     {
         $path = Path::makeAbsolute($args->getArgument('path'), $this->currentPath);
 
         $resources = $this->repo->find($path);
 
         if (!count($resources)) {
-            $io->errorLine("No resources found for path $path");
+            $inputOutput->errorLine('No resources found for path '.$path);
 
             return 1;
         }
 
         foreach ($resources as $resource) {
             if ($resource instanceof BodyResource) {
-                $io->writeLine($resource->getBody());
+                $inputOutput->writeLine($resource->getBody());
             }
         }
 
