@@ -49,8 +49,8 @@ class CatCommandHandler
     /**
      * Handles the "ls" command.
      *
-     * @param Args $args          The console arguments.
-     * @param IO   $inputOutput   The I/O.
+     * @param Args $args        The console arguments.
+     * @param IO   $inputOutput The I/O.
      *
      * @return int The status code.
      */
