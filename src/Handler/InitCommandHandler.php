@@ -2,90 +2,124 @@
 
 namespace Puli\Cli\Handler;
 
+use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Console\Input\InputInterface as Input;
+use Symfony\Component\Console\Output\OutputInterface as Output;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Question\Question;
+use Webmozart\Console\Adapter\ArgsInput;
+use Webmozart\Console\Adapter\IOOutput;
 use Webmozart\Console\Api\Args\Args;
 use Webmozart\Console\Api\IO\IO;
 
 class InitCommandHandler
 {
+    const PROJECT_TYPE_APP = 0;
+    const PROJECT_TYPE_LIB = 1;
+
+    /**
+     * @var QuestionHelper
+     */
+    private $questionHelper;
+
     /**
      * @var string
      */
     private $rootDirectory;
 
     /**
+     * @param QuestionHelper $questionHelper
      * @param string $rootDirectory
      */
-    public function __construct($rootDirectory)
+    public function __construct(QuestionHelper $questionHelper, $rootDirectory)
     {
+        $this->questionHelper = $questionHelper;
         $this->rootDirectory = $rootDirectory;
     }
 
     public function handle(Args $args, IO $io)
     {
-        $packageName = $this->askForPackageName($io);
-        $this->askWhetherApplicationOrLibrary($io);
+        $input  = new ArgsInput($args->getRawArgs(), $args);
+        $output = new IOOutput($io);
+
+        $packageName = $this->askForPackageName($input, $output);
+        $projectType = $this->askWhetherApplicationOrLibrary($input, $output);
 
         $directoryCreations = array();
-        if (null !== $resDirectory = $this->askForResourceDirectoryName($io)) {
-            $directoryCreations = $this->getDirectoryCreationList($io, $resDirectory);
+        if (null !== $resDirectory = $this->askForResourceDirectoryName($input, $output)) {
+            $directoryCreations = $this->getDirectoryCreationList($input, $output, $resDirectory);
+        }
+
+        if (self::PROJECT_TYPE_LIB === $projectType) {
+            $question = new ConfirmationQuestion(
+                sprintf('Register mapping /%s => res [y]: ', $packageName)
+            );
+
+            $this->questionHelper->ask($input, $output, $question);
+        } elseif (self::PROJECT_TYPE_APP === $projectType) {
+            $question = new ConfirmationQuestion(
+                sprintf('Register mapping /app => res [y]: ', $packageName)
+            );
+
+            $this->questionHelper->ask($input, $output, $question);
         }
 
         $io->writeLine('Your package name: ' . $packageName);
     }
 
     /**
-     * @param IO $io
+     * @param Input $input
+     * @param Output $output
      * @return string
      */
-    private function askForPackageName(IO $io)
+    private function askForPackageName(Input $input, Output $output)
     {
         $appendix = '';
         if (null !== $composerPackageName = $this->getComposerPackageName()) {
             $appendix = sprintf(' [%s]', $composerPackageName);
         }
 
-        do {
-            $io->write(sprintf('Package name (<vendor>/<name>)%s: ', $appendix));
-            $name = trim($io->readLine());
-            if (empty($name)) {
-                $name = $composerPackageName;
-            }
-        } while (empty($name));
+        $question = new Question(
+            sprintf('Package name (<vendor>/<name>)%s: ', $appendix),
+            $composerPackageName
+        );
 
-        return $name;
+        return $this->questionHelper->ask($input, $output, $question);
     }
 
     /**
-     * @param IO $io
-     * @return bool|null true, if application
+     * @param Input $input
+     * @param Output $output
+     * @return string|null true, if application
      *                   false, if library
-     *                   null, if the user didn't specify the type
+     * null, if the user didn't specify the type
      */
-    private function askWhetherApplicationOrLibrary(IO $io)
+    private function askWhetherApplicationOrLibrary(Input $input, Output $output)
     {
-        $answer = null;
-        do {
-            $io->write('Project is an [a]pplication or a [l]ibrary: ');
-            $answer = trim($io->read(1));
-
-            if (empty($answer)) {
+        $question = new Question('Project is an (a)pplication, a (l)ibrary or (n)one of both [n]: ', '');
+        $question->setValidator(function($value) {
+            $value = trim($value);
+            if (empty($value) || 'n' === $value) {
                 return null;
-            } elseif ('a' === $answer) {
-                return true;
-            } elseif ('l' === $answer) {
-                return false;
-            } else {
-                $answer = null;
+            } else if ('a' === $value) {
+                return InitCommandHandler::PROJECT_TYPE_APP;
+            } else if ('l' === $value) {
+                return InitCommandHandler::PROJECT_TYPE_LIB;
             }
-        } while (null === $answer);
+
+            throw new \InvalidArgumentException();
+        });
+
+        return $this->questionHelper->ask($input, $output, $question);
     }
 
     /**
-     * @param IO $io
+     * @param Input $input
+     * @param Output $output
      * @param $resDirectory
      * @return array
      */
-    private function getDirectoryCreationList(IO $io, $resDirectory)
+    private function getDirectoryCreationList(Input $input, Output $output, $resDirectory)
     {
         $directoryCreations = array();
 
@@ -97,87 +131,51 @@ class InitCommandHandler
         $viewsDir  = $resDirectory . '/views';
         $transDir  = $resDirectory . '/trans';
 
-        if ($this->askForCreationOfDirectory($io, $configDir)) {
-            $directoryCreations[] = $configDir;
-        }
+        $questionHelper = $this->questionHelper;
+        $helper = function($directory) use($input, $output, $questionHelper, &$directoryCreations) {
+            $question = new ConfirmationQuestion(
+                sprintf('Create directory "%s" [y]: ', $directory)
+            );
 
-        if ($this->askForCreationOfDirectory($io, $publicDir)) {
-            if ($this->askForCreationOfDirectory($io, $cssDir)) {
-                $directoryCreations[] = $cssDir;
+            if ($answer = $questionHelper->ask($input, $output, $question)) {
+                $directoryCreations[] = $directory;
             }
 
-            if ($this->askForCreationOfDirectory($io, $imagesDir)) {
-                $directoryCreations[] = $imagesDir;
-            }
+            return $answer;
+        };
 
-            if ($this->askForCreationOfDirectory($io, $jsDir)) {
-                $directoryCreations[] = $jsDir;
-            }
+        $helper($configDir);
+
+        if ($helper($publicDir)) {
+            $helper($cssDir);
+            $helper($imagesDir);
+            $helper($jsDir);
         }
 
-        if ($this->askForCreationOfDirectory($io, $viewsDir)) {
-            $directoryCreations[] = $viewsDir;
-        }
-
-        if ($this->askForCreationOfDirectory($io, $transDir)) {
-            $directoryCreations[] = $transDir;
-        }
+        $helper($viewsDir);
+        $helper($transDir);
 
         return $directoryCreations;
     }
 
     /**
-     * @param IO $io
+     * @param Input $input
+     * @param Output $output
      * @return null|string
      */
-    private function askForResourceDirectoryName(IO $io)
+    private function askForResourceDirectoryName(Input $input, Output $output)
     {
-        $createResourceDirectory = null;
-        do {
-            $io->write('Create a resource directory [yes]: ');
-            $createResourceDirectory = trim($io->readLine());
+        $question = new ConfirmationQuestion('Create a resource directory [y]: ');
 
-            if ('no' === $createResourceDirectory) {
-                $createResourceDirectory = false;
-            } else if (empty($createResourceDirectory) || 'yes' === $createResourceDirectory) {
-                $createResourceDirectory = true;
-            } else {
-                $createResourceDirectory = null;
-            }
+        $createResDir = $this->questionHelper->ask($input, $output, $question);
 
-        } while (null === $createResourceDirectory);
-
-        if (!$createResourceDirectory) {
+        if (!$createResDir) {
             return null;
         }
 
-        $io->write('Name of the resource directory [res]: ');
-        $resourceDirectory = trim($io->readLine());
-        if (empty($resourceDirectory)) {
-            $resourceDirectory = 'res';
-        }
+        $question = new Question('Name of the resource directory [res]: ', 'res');
 
-        return $resourceDirectory;
-    }
-
-    private function askForCreationOfDirectory(IO $io, $directory)
-    {
-        $createDirectory = null;
-        do {
-            $io->write(sprintf('Create directory "%s" [yes]: ', $directory));
-            $createDirectory = trim($io->readLine());
-
-            if ('no' === $createDirectory) {
-                $createDirectory = false;
-            } else if (empty($createDirectory) || 'yes' === $createDirectory) {
-                $createDirectory = true;
-            } else {
-                $createDirectory = null;
-            }
-
-        } while (null === $createDirectory);
-
-        return $createDirectory;
+        return $this->questionHelper->ask($input, $output, $question);
     }
 
     /**
