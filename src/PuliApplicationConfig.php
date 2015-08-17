@@ -32,6 +32,7 @@ use Puli\Manager\Api\Package\InstallInfo;
 use Puli\Manager\Api\Puli;
 use Puli\Manager\Api\Server\Server;
 use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Filesystem\Filesystem;
 use Webmozart\Console\Api\Args\Format\Argument;
 use Webmozart\Console\Api\Args\Format\Option;
 use Webmozart\Console\Api\Formatter\Style;
@@ -561,7 +562,10 @@ class PuliApplicationConfig extends DefaultApplicationConfig
         $this
             ->beginCommand('init')
                 ->setHandler(function() use ($puli) {
-                    return new InitCommandHandler(new QuestionHelper(), $puli->getRootDirectory());
+                    return new InitCommandHandler(
+                        new QuestionHelper(), $puli->getPackageFileSerializer(), $puli->getStorage(),
+                        new Filesystem()
+                    );
                 })
                 ->setHandlerMethod('handle')
             ->end()

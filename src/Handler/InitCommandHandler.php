@@ -2,11 +2,16 @@
 
 namespace Puli\Cli\Handler;
 
+use Puli\Manager\Api\Package\PackageFileSerializer;
+use Puli\Manager\Api\Package\RootPackageFile;
+use Puli\Manager\Api\Repository\PathMapping;
+use Puli\Manager\Api\Storage\Storage;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface as Input;
 use Symfony\Component\Console\Output\OutputInterface as Output;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Question\Question;
+use Symfony\Component\Filesystem\Filesystem;
 use Webmozart\Console\Adapter\ArgsInput;
 use Webmozart\Console\Adapter\IOOutput;
 use Webmozart\Console\Api\Args\Args;
@@ -23,18 +28,33 @@ class InitCommandHandler
     private $questionHelper;
 
     /**
-     * @var string
+     * @var PackageFileSerializer
      */
-    private $rootDirectory;
+    private $serializer;
+
+    /**
+     * @var Storage
+     */
+    private $storage;
+
+    /**
+     * @var Filesystem
+     */
+    private $filesystem;
 
     /**
      * @param QuestionHelper $questionHelper
-     * @param string $rootDirectory
+     * @param PackageFileSerializer $serializer
+     * @param Storage $storage
+     * @param Filesystem $filesystem
      */
-    public function __construct(QuestionHelper $questionHelper, $rootDirectory)
+    public function __construct(QuestionHelper $questionHelper, PackageFileSerializer $serializer, Storage $storage,
+        Filesystem $filesystem)
     {
         $this->questionHelper = $questionHelper;
-        $this->rootDirectory = $rootDirectory;
+        $this->serializer = $serializer;
+        $this->storage = $storage;
+        $this->filesystem = $filesystem;
     }
 
     public function handle(Args $args, IO $io)
@@ -42,7 +62,17 @@ class InitCommandHandler
         $input  = new ArgsInput($args->getRawArgs(), $args);
         $output = new IOOutput($io);
 
-        $packageName = $this->askForPackageName($input, $output);
+        $io->writeLine("<info>  Welcome to the Puli config generator  </info>");
+        $io->writeLine('');
+        $io->writeLine('<info>This command will guide you through creating your puli.json config.</info>');
+        $io->writeLine('');
+
+        $rootPackage = new RootPackageFile();
+
+        $rootPackage->setPackageName(
+            $this->askForPackageName($input, $output)
+        );
+
         $projectType = $this->askWhetherApplicationOrLibrary($input, $output);
 
         $directoryCreations = array();
@@ -50,21 +80,53 @@ class InitCommandHandler
             $directoryCreations = $this->getDirectoryCreationList($input, $output, $resDirectory);
         }
 
+        $from = null;
         if (self::PROJECT_TYPE_LIB === $projectType) {
-            $question = new ConfirmationQuestion(
-                sprintf('Register mapping /%s => res [y]: ', $packageName)
-            );
-
-            $this->questionHelper->ask($input, $output, $question);
+            $from = '/' . $rootPackage->getPackageName();
         } elseif (self::PROJECT_TYPE_APP === $projectType) {
-            $question = new ConfirmationQuestion(
-                sprintf('Register mapping /app => res [y]: ', $packageName)
-            );
-
-            $this->questionHelper->ask($input, $output, $question);
+            $from = '/app';
         }
 
-        $io->writeLine('Your package name: ' . $packageName);
+        if (null !== $from) {
+            $question = new ConfirmationQuestion(
+                sprintf('Register mapping %s => %s [<question>yes</question>]: ', $from, $resDirectory)
+            );
+
+            if ($this->questionHelper->ask($input, $output, $question)) {
+                $rootPackage->addPathMapping(new PathMapping($from, $resDirectory));
+            }
+        }
+
+        $io->writeLine('');
+
+        if (!empty($directoryCreations)) {
+            $io->writeLine('<info>Create following directories:</info>');
+            $io->writeLine('');
+            foreach ($directoryCreations as $dir) {
+                $io->writeLine('- ' . $dir);
+            }
+
+            $io->writeLine('');
+        }
+
+        $serializedPackage = $this->serializer->serializeRootPackageFile($rootPackage);
+        $io->writeLine('<info>Create following puli.json:</info>');
+        $io->writeLine($serializedPackage);
+
+        $io->writeLine('');
+
+        $question = new ConfirmationQuestion(
+            'Do you confirm generation [<question>yes</question>]? '
+        );
+
+        if (!$this->questionHelper->ask($input, $output, $question)) {
+            $io->writeLine('<error>Command aborted</error>');
+            return;
+        }
+
+        $this->filesystem->mkdir($directoryCreations);
+
+        $this->storage->write(getcwd() . '/puli.json', $serializedPackage);
     }
 
     /**
@@ -76,7 +138,7 @@ class InitCommandHandler
     {
         $appendix = '';
         if (null !== $composerPackageName = $this->getComposerPackageName()) {
-            $appendix = sprintf(' [%s]', $composerPackageName);
+            $appendix = sprintf(' [<question>%s</question>]', $composerPackageName);
         }
 
         $question = new Question(
@@ -96,7 +158,9 @@ class InitCommandHandler
      */
     private function askWhetherApplicationOrLibrary(Input $input, Output $output)
     {
-        $question = new Question('Project is an (a)pplication, a (l)ibrary or (n)one of both [n]: ', '');
+        $question = new Question(
+            'Project is an (a)pplication, a (l)ibrary or (n)one of both [<question>n</question>]: ', ''
+        );
         $question->setValidator(function($value) {
             $value = trim($value);
             if (empty($value) || 'n' === $value) {
@@ -134,7 +198,7 @@ class InitCommandHandler
         $questionHelper = $this->questionHelper;
         $helper = function($directory) use($input, $output, $questionHelper, &$directoryCreations) {
             $question = new ConfirmationQuestion(
-                sprintf('Create directory "%s" [y]: ', $directory)
+                sprintf('Create directory "%s" [<question>yes</question>]: ', $directory)
             );
 
             if ($answer = $questionHelper->ask($input, $output, $question)) {
@@ -165,7 +229,7 @@ class InitCommandHandler
      */
     private function askForResourceDirectoryName(Input $input, Output $output)
     {
-        $question = new ConfirmationQuestion('Create a resource directory [y]: ');
+        $question = new ConfirmationQuestion('Create a resource directory [<question>yes</question>]: ');
 
         $createResDir = $this->questionHelper->ask($input, $output, $question);
 
@@ -173,7 +237,7 @@ class InitCommandHandler
             return null;
         }
 
-        $question = new Question('Name of the resource directory [res]: ', 'res');
+        $question = new Question('Name of the resource directory [<question>res</question>]: ', 'res');
 
         return $this->questionHelper->ask($input, $output, $question);
     }
@@ -183,7 +247,7 @@ class InitCommandHandler
      */
     private function getComposerPackageName()
     {
-        $file = $this->rootDirectory . '/composer.json';
+        $file = 'composer.json';
 
         if (!file_exists($file)){
             return null;
