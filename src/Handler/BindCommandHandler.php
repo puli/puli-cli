@@ -90,7 +90,7 @@ class BindCommandHandler
 
                 $bindings = $this->discoveryManager->findBindings($expr);
 
-                if (!$bindings) {
+                if (empty($bindings)) {
                     continue;
                 }
 
@@ -101,7 +101,7 @@ class BindCommandHandler
 
                 if ($printPackageName) {
                     $prefix = $printBindingState ? '    ' : '';
-                    $io->writeLine("{$prefix}Package: $packageName");
+                    $io->writeLine($prefix.'Package: '.$packageName);
                     $io->writeLine('');
                 }
 
@@ -337,20 +337,20 @@ class BindCommandHandler
             $uuid = substr($descriptor->getUuid(), 0, 6);
 
             if (!$enabled) {
-                $uuid = "<bad>$uuid</bad>";
+                $uuid = '<bad>'.$uuid.'</bad>';
             }
 
-            if ($parameters) {
+            if (!empty($parameters)) {
                 // \xc2\xa0 is a non-breaking space
-                $paramString = " <$paramTag>(".implode(",\xc2\xa0", $parameters).")</$paramTag>";
+                $paramString = ' <'.$paramTag.'>('.implode(",\xc2\xa0", $parameters).')</'.$paramTag.'>';
             } else {
                 $paramString = '';
             }
 
             $table->addRow(array(
                 $uuid,
-                "<$queryTag>{$descriptor->getQuery()}</$queryTag>",
-                "<$typeTag>{$descriptor->getTypeName()}</$typeTag>".$paramString,
+                '<'.$queryTag.'>'.$descriptor->getQuery().'</'.$queryTag.'>',
+                '<'.$typeTag.'>'.$descriptor->getTypeName().'</'.$typeTag.'>'.$paramString,
             ));
         }
 
