@@ -48,6 +48,11 @@ class BindCommandHandler
     private $packages;
 
     /**
+     * @var ArtifactCliBuilder[]
+     */
+    private $artifactCliBuilders;
+
+    /**
      * @var string
      */
     private $currentPath = '/';
@@ -58,10 +63,11 @@ class BindCommandHandler
      * @param DiscoveryManager  $discoveryManager The discovery manager.
      * @param PackageCollection $packages         The loaded packages.
      */
-    public function __construct(DiscoveryManager $discoveryManager, PackageCollection $packages)
+    public function __construct(DiscoveryManager $discoveryManager, PackageCollection $packages, array $artifactCliBuilders = [])
     {
         $this->discoveryManager = $discoveryManager;
         $this->packages = $packages;
+        $this->artifactCliBuilders = $artifactCliBuilders;
     }
 
     /**
@@ -132,7 +138,7 @@ class BindCommandHandler
                 | DiscoveryManager::IGNORE_TYPE_NOT_ENABLED
             : 0;
 
-        $bindingParams = array();
+/*        $bindingParams = array();
         $artifact = $args->getArgument('artifact');
 
         $this->parseParams($args, $bindingParams);
@@ -150,6 +156,17 @@ class BindCommandHandler
                 $bindingParams,
                 $args->getOption('language')
             );
+        }*/
+        $binding = null;
+        foreach ($this->artifactCliBuilders as $artifactBuilder) {
+            if ($artifactBuilder->canBuildFromArgs($args)) {
+                $binding = $artifactBuilder->buildFromArgs($args);
+                break;
+            }
+        }
+        if ($binding === null) {
+            // Some error reporting
+            throw new \Exception('TODO: correct error message');
         }
 
         $this->discoveryManager->addRootBindingDescriptor(new BindingDescriptor($binding), $flags);
@@ -400,26 +417,6 @@ class BindCommandHandler
                 $io->writeLine('');
 
                 return;
-        }
-    }
-
-    private function parseParams(Args $args, array &$bindingParams)
-    {
-        foreach ($args->getOption('param') as $parameter) {
-            $pos = strpos($parameter, '=');
-
-            if (false === $pos) {
-                throw new RuntimeException(sprintf(
-                    'The "--param" option expects a parameter in the form '.
-                    '"key=value". Got: "%s"',
-                    $parameter
-                ));
-            }
-
-            $key = substr($parameter, 0, $pos);
-            $value = StringUtil::parseValue(substr($parameter, $pos + 1));
-
-            $bindingParams[$key] = $value;
         }
     }
 

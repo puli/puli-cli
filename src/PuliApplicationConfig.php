@@ -11,6 +11,9 @@
 
 namespace Puli\Cli;
 
+use Puli\Cli\ArtifactBuilder\ClassArtifactBuilder;
+use Puli\Cli\ArtifactBuilder\ResourceArtifactBuilder;
+use Puli\Cli\ArtifactBuilder\ServiceArtifactBuilder;
 use Puli\Cli\Handler\BindCommandHandler;
 use Puli\Cli\Handler\BuildCommandHandler;
 use Puli\Cli\Handler\CatCommandHandler;
@@ -135,13 +138,20 @@ class PuliApplicationConfig extends DefaultApplicationConfig
             );
         }
 
+        $artifactBuilders = [
+            new ClassArtifactBuilder(),
+            new ServiceArtifactBuilder(),
+            new ResourceArtifactBuilder()
+        ];
+
         $this
             ->beginCommand('bind')
                 ->setDescription('Bind resources to binding types')
-                ->setHandler(function () use ($puli) {
+                ->setHandler(function () use ($puli, $artifactBuilders) {
                     return new BindCommandHandler(
                         $puli->getDiscoveryManager(),
-                        $puli->getPackageManager()->getPackages()
+                        $puli->getPackageManager()->getPackages(),
+                        $artifactBuilders
                     );
                 })
 
@@ -149,9 +159,7 @@ class PuliApplicationConfig extends DefaultApplicationConfig
                     ->markAnonymous()
                     ->addArgument('artifact', Argument::REQUIRED, 'A class name or a query for resources')
                     ->addArgument('type', Argument::REQUIRED, 'The name of the binding type')
-                    ->addOption('language', null, Option::REQUIRED_VALUE, 'The language of the resource query', 'glob', 'language')
                     ->addOption('param', null, Option::REQUIRED_VALUE | Option::MULTI_VALUED, 'A binding parameter in the form <key>=<value>', null, 'key=value')
-                    ->addOption('class', null, Option::NO_VALUE, 'Force adding of a class binding')
                     ->addOption('force', 'f', Option::NO_VALUE, 'Add binding even if the binding type does not exist')
                     ->setHandlerMethod('handleAdd')
                 ->end()
@@ -200,6 +208,11 @@ class PuliApplicationConfig extends DefaultApplicationConfig
                 ->end()
             ->end()
         ;
+
+        $addCommand = $this->getCommandConfig('bind')->getSubCommandConfig('add');
+        foreach ($artifactBuilders as $artifactBuilder) {
+            $artifactBuilder->alterAddOptionCommandConfig($addCommand);
+        }
 
         $this
             ->beginCommand('build')
