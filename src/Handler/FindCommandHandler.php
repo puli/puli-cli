@@ -13,7 +13,7 @@ namespace Puli\Cli\Handler;
 
 use Puli\Cli\Util\StringUtil;
 use Puli\Discovery\Api\Discovery;
-use Puli\Discovery\Binding\ResourceBinding;
+use Puli\Repository\Discovery\ResourceBinding;
 use Puli\Repository\Api\ResourceRepository;
 use RuntimeException;
 use Webmozart\Console\Api\Args\Args;
@@ -164,7 +164,7 @@ class FindCommandHandler
     {
         $matches = array();
 
-        $expr = Expr::isInstanceOf('Puli\Discovery\Binding\ResourceBinding');
+        $expr = Expr::isInstanceOf('Puli\Repository\Discovery\ResourceBinding');
 
         foreach ($this->discovery->findBindings($typeName, $expr) as $binding) {
             /** @var ResourceBinding $binding */

@@ -143,8 +143,9 @@ class TypeCommandHandler
         $this->parseParamDescriptions($args, $paramDescriptions);
         $this->parseParams($args, $bindingParams);
 
+        $name = $args->getArgument('name');
         $this->discoveryManager->addRootTypeDescriptor(new BindingTypeDescriptor(
-            new BindingType($args->getArgument('name'), $bindingParams),
+            new BindingType($name, $this->detectBindingClass($name), $bindingParams),
             $args->getOption('description'),
             $paramDescriptions
         ), $flags);
@@ -176,7 +177,7 @@ class TypeCommandHandler
         }
 
         $updatedDescriptor = new BindingTypeDescriptor(
-            new BindingType($name, $bindingParams),
+            new BindingType($name, $this->detectBindingClass($name), $bindingParams),
             $description,
             $paramDescriptions
         );
@@ -362,5 +363,20 @@ class TypeCommandHandler
             $descriptor1->getDescription() === $descriptor2->getDescription() &&
             $descriptor1->getParameterDescriptions() === $descriptor2->getParameterDescriptions() &&
             $descriptor1->getType()->getParameters() === $descriptor2->getType()->getParameters();
+    }
+
+    /**
+     * Identify what type of binding class $name is.
+     *
+     * @param string $name
+     */
+    private function detectBindingClass($name)
+    {
+        $bindingClass = 'Puli\Repository\Discovery\ResourceBinding';
+        if (class_exists($name) || interface_exists($name)) {
+            $bindingClass = 'Puli\Discovery\Binding\ClassBinding';
+        }
+
+        return $bindingClass;
     }
 }

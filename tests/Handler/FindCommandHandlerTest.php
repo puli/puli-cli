@@ -14,9 +14,8 @@ namespace Puli\Cli\Tests\Handler;
 use PHPUnit_Framework_MockObject_MockObject;
 use Puli\Cli\Handler\FindCommandHandler;
 use Puli\Discovery\Api\Discovery;
-use Puli\Discovery\Api\Type\BindingType;
-use Puli\Discovery\Binding\ResourceBinding;
 use Puli\Repository\Api\ResourceRepository;
+use Puli\Repository\Discovery\ResourceBinding;
 use Puli\Repository\Resource\Collection\ArrayResourceCollection;
 use Puli\Repository\Resource\DirectoryResource;
 use Puli\Repository\Resource\FileResource;
@@ -249,7 +248,7 @@ EOF;
             )));
         $this->discovery->expects($this->once())
             ->method('findBindings')
-            ->with('vendor/type', Expr::isInstanceOf('Puli\Discovery\Binding\ResourceBinding'))
+            ->with('vendor/type', Expr::isInstanceOf('Puli\Repository\Discovery\ResourceBinding'))
             ->willReturn(array($binding1, $binding2));
 
         $statusCode = $this->handler->handle($args, $this->io);
@@ -319,7 +318,7 @@ EOF;
             )));
         $this->discovery->expects($this->once())
             ->method('findBindings')
-            ->with('vendor/type', Expr::isInstanceOf('Puli\Discovery\Binding\ResourceBinding'))
+            ->with('vendor/type', Expr::isInstanceOf('Puli\Repository\Discovery\ResourceBinding'))
             ->willReturn(array($binding1, $binding2));
 
         $statusCode = $this->handler->handle($args, $this->io);
@@ -339,7 +338,6 @@ EOF;
     public function testFindByPathAndBindingType()
     {
         $args = self::$findCommand->parseArgs(new StringArgs('--path *pattern* --language xpath --type vendor/type'));
-        $type = new BindingType('vendor/type');
 
         $binding1 = new ResourceBinding('/path1', 'vendor/type');
         $binding2 = new ResourceBinding('/path2', 'vendor/type');
@@ -374,7 +372,7 @@ EOF;
 
         $this->discovery->expects($this->once())
             ->method('findBindings')
-            ->with('vendor/type', Expr::isInstanceOf('Puli\Discovery\Binding\ResourceBinding'))
+            ->with('vendor/type', Expr::isInstanceOf('Puli\Repository\Discovery\ResourceBinding'))
             ->willReturn(array($binding1, $binding2));
 
         $statusCode = $this->handler->handle($args, $this->io);
