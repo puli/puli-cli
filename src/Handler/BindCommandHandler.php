@@ -15,7 +15,7 @@ use Puli\Cli\Style\PuliTableStyle;
 use Puli\Cli\Util\ArgsUtil;
 use Puli\Cli\Util\StringUtil;
 use Puli\Discovery\Binding\ClassBinding;
-use Puli\Discovery\Binding\ResourceBinding;
+use Puli\Repository\Discovery\ResourceBinding;
 use Puli\Manager\Api\Discovery\BindingDescriptor;
 use Puli\Manager\Api\Discovery\BindingState;
 use Puli\Manager\Api\Discovery\DiscoveryManager;
