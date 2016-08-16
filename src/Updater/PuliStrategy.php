@@ -11,6 +11,7 @@
 
 namespace Puli\Cli\Updater;
 
+use Composer\CaBundle\CaBundle;
 use Humbug\SelfUpdate\Exception\HttpRequestException;
 use Humbug\SelfUpdate\Strategy\StrategyInterface;
 use Humbug\SelfUpdate\Updater;
@@ -56,7 +57,7 @@ class PuliStrategy implements StrategyInterface
             $this->getCurrentRemoteVersion($updater)
         );
 
-        $result = humbug_get_contents($remoteUrl);
+        $result = $this->secureFileGetContents($remoteUrl);
         restore_error_handler();
 
         if (false === $result) {
@@ -137,5 +138,30 @@ class PuliStrategy implements StrategyInterface
     public function getStability()
     {
         return $this->stability;
+    }
+
+    /**
+     * Get a remote file content securely using composer/ca-bundle to find the local ca-file.
+     *
+     * @param string $remoteUrl
+     * @return string
+     */
+    private function secureFileGetContents($remoteUrl)
+    {
+        $options = array(
+            'http' => array(
+                'method' => 'GET'
+            )
+        );
+
+        $caPath = CaBundle::getSystemCaRootBundlePath();
+
+        if (is_dir($caPath)) {
+            $options['ssl']['capath'] = $caPath;
+        } else {
+            $options['ssl']['cafile'] = $caPath;
+        }
+
+        return file_get_contents($remoteUrl, false, stream_context_create($options));
     }
 }
