@@ -12,6 +12,8 @@ matrix:
     - php: 5.4
     - php: 5.5
     - php: 5.6
+      env:
+        - EXECUTE_DEPLOYMENT=true
     - php: hhvm
     - php: nightly
     - php: 7.0
@@ -33,6 +35,13 @@ install: composer update $COMPOSER_FLAGS --prefer-dist --no-interaction
 script: if [[ $COVERAGE = yes ]]; then vendor/bin/phpunit --verbose --coverage-clover=coverage.clover; else vendor/bin/phpunit --verbose; fi
 
 after_script: if [[ $COVERAGE = yes ]]; then wget https://scrutinizer-ci.com/ocular.phar && php ocular.phar code-coverage:upload --format=php-clover coverage.clover; fi
+
+after_success:
+  - openssl aes-256-cbc -K $encrypted_7a05c4e35c71_key -iv $encrypted_7a05c4e35c71_iv
+    -in .travis/secrets.tar.enc -out .travis/secrets.tar -d
+  - if [[ $EXECUTE_DEPLOYMENT == 'true' && ($TRAVIS_BRANCH == 'master' || $TRAVIS_TAG != '') && $TRAVIS_PULL_REQUEST == 'false' ]]; then composer install --no-dev ; fi
+  - if [[ $EXECUTE_DEPLOYMENT == 'true' && ($TRAVIS_BRANCH == 'master' || $TRAVIS_TAG != '') && $TRAVIS_PULL_REQUEST == 'false' ]]; then ./bin/deploy.sh ; fi
+  - if [[ $EXECUTE_DEPLOYMENT == 'true' && ($TRAVIS_BRANCH == 'master' || $TRAVIS_TAG != '') && $TRAVIS_PULL_REQUEST == 'false' ]]; then ./puli.phar ; fi
 
 notifications:
   webhooks:

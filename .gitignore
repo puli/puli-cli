@@ -7,3 +7,7 @@
 /puli.json
 /box.json
 /.puli
+/.idea
+*.iml
+.travis/build-key.pem
+.travis/secrets.tar
